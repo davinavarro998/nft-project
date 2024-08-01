@@ -10,16 +10,19 @@ contract ProtoNFT is ERC721A  {
 
     address payable private _owner;
 
+    uint256 constant private _price = 0.01 ether;
+
     constructor() ERC721A("ProtoNFT", "PNFT") {
         _owner = payable(msg.sender);
     }
 
     function mint(uint256 quantity) public payable {
-        require(msg.value >= (0.01 ether * quantity), "Insufficient payment");
+        require(msg.value >= (_price * quantity), "Insufficient payment");
         _mint(msg.sender, quantity);
     }
 
-    function burn(uint256 tokenId) external {    
+    function burn(uint256 tokenId) external { 
+        require(ownerOf(tokenId) == msg.sender, "You are not the owner");   
         super._burn(tokenId, true);
     }
 
@@ -28,7 +31,7 @@ contract ProtoNFT is ERC721A  {
 
         uint256 amount = address(this).balance;
         (bool success,) = _owner.call{value: amount}("");
-        require(success == true, "Failed to withdraw");
+        require(success, "Failed to withdraw");
     }
 
     function _baseURI() internal pure override returns (string memory) {
@@ -44,7 +47,11 @@ contract ProtoNFT is ERC721A  {
         return string.concat(super.tokenURI(tokenId), ".json");
     }
 
-    function contractURI() public pure returns (string memory) {
+    /* function contractURI() public pure returns (string memory) {
         return "ifps://QmZAakeXCKkgegHEKgCE9LbbrHEmrzHcYeA9wTcqbMsypt/contract.json";
+    } */
+
+    function getPrice() external pure returns (uint256) {
+        return _price;
     }
 }

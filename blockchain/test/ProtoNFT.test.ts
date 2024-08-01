@@ -1,127 +1,124 @@
-import {
-  time,
-  loadFixture,
-} from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import hre from "hardhat";
+import { ProtoNFT, ProtoNFT__factory } from "../typechain-types";
 
-describe("Lock", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
-  async function deployOneYearLockFixture() {
-    const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-    const ONE_GWEI = 1_000_000_000;
+describe("ProtoNFT", function (): void {
+ 
+  async function deployFixture(): Promise<{
+    signers: HardhatEthersSigner[];
+    protoNFTInstance: ProtoNFT;
+  }> {
+    const signers: HardhatEthersSigner[] = await hre.ethers.getSigners();
+    const protoNFTFactory: ProtoNFT__factory =
+      await hre.ethers.getContractFactory("ProtoNFT");
+    const protoNFTInstance: ProtoNFT = await protoNFTFactory.deploy();
 
-    const lockedAmount = ONE_GWEI;
-    const unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
-
-    // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await hre.ethers.getSigners();
-
-    const Lock = await hre.ethers.getContractFactory("Lock");
-    const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-    return { lock, unlockTime, lockedAmount, owner, otherAccount };
+    return { signers, protoNFTInstance };
   }
 
-  describe("Deployment", function () {
-    it("Should set the right unlockTime", async function () {
-      const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
+  it("should mint some NFTs", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price; 
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+    const balanceOfBuyer:bigint = await protoNFTInstance.balanceOf(buyerAccount);
 
-      expect(await lock.unlockTime()).to.equal(unlockTime);
-    });
-
-    it("Should set the right owner", async function () {
-      const { lock, owner } = await loadFixture(deployOneYearLockFixture);
-
-      expect(await lock.owner()).to.equal(owner.address);
-    });
-
-    it("Should receive and store the funds to lock", async function () {
-      const { lock, lockedAmount } = await loadFixture(
-        deployOneYearLockFixture
-      );
-
-      expect(await hre.ethers.provider.getBalance(lock.target)).to.equal(
-        lockedAmount
-      );
-    });
-
-    it("Should fail if the unlockTime is not in the future", async function () {
-      // We don't use the fixture here because we want a different deployment
-      const latestTime = await time.latest();
-      const Lock = await hre.ethers.getContractFactory("Lock");
-      await expect(Lock.deploy(latestTime, { value: 1 })).to.be.revertedWith(
-        "Unlock time should be in the future"
-      );
-    });
+    expect(balanceOfBuyer).to.equal(quantity);
   });
 
-  describe("Withdrawals", function () {
-    describe("Validations", function () {
-      it("Should revert with the right error if called too soon", async function () {
-        const { lock } = await loadFixture(deployOneYearLockFixture);
 
-        await expect(lock.withdraw()).to.be.revertedWith(
-          "You can't withdraw yet"
-        );
-      });
-
-      it("Should revert with the right error if called from another account", async function () {
-        const { lock, unlockTime, otherAccount } = await loadFixture(
-          deployOneYearLockFixture
-        );
-
-        // We can increase the time in Hardhat Network
-        await time.increaseTo(unlockTime);
-
-        // We use lock.connect() to send a transaction from another account
-        await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
-          "You aren't the owner"
-        );
-      });
-
-      it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-        const { lock, unlockTime } = await loadFixture(
-          deployOneYearLockFixture
-        );
-
-        // Transactions are sent using the first signer by default
-        await time.increaseTo(unlockTime);
-
-        await expect(lock.withdraw()).not.to.be.reverted;
-      });
-    });
-
-    describe("Events", function () {
-      it("Should emit an event on withdrawals", async function () {
-        const { lock, unlockTime, lockedAmount } = await loadFixture(
-          deployOneYearLockFixture
-        );
-
-        await time.increaseTo(unlockTime);
-
-        await expect(lock.withdraw())
-          .to.emit(lock, "Withdrawal")
-          .withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
-      });
-    });
-
-    describe("Transfers", function () {
-      it("Should transfer the funds to the owner", async function () {
-        const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-          deployOneYearLockFixture
-        );
-
-        await time.increaseTo(unlockTime);
-
-        await expect(lock.withdraw()).to.changeEtherBalances(
-          [owner, lock],
-          [lockedAmount, -lockedAmount]
-        );
-      });
-    });
+  it("should NOT mint some NFTs (not enough ether)", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = price; 
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await expect(otherInstance.mint(quantity, {value:totalPayment})).to.be.revertedWith("Insufficient payment");
   });
+
+
+  it("should burn a NFT", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price;
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+
+    await otherInstance.burn(0);
+
+    const balanceOf:bigint = await protoNFTInstance.balanceOf(buyerAccount);
+
+    expect(balanceOf).to.equal(quantity - 1n);
+  });
+
+
+  it("should NOT burn a NFT", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price;
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+
+    await expect(protoNFTInstance.burn(0)).to.be.revertedWith("You are not the owner");
+
+  });
+
+  it("should withdraw ether from the ProtoNFT smart contract", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price; 
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+
+    await protoNFTInstance.withdraw();
+
+    const amountOfEtherLocked:bigint = await hre.ethers.provider.getBalance(protoNFTInstance);
+
+    expect(amountOfEtherLocked).to.equal(0);
+  });
+
+  it("should NOT withdraw ether from the ProtoNFT smart contract (not owner)", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price; 
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+
+    await expect(otherInstance.withdraw()).to.be.revertedWith("You do not have permission");
+
+    
+  });
+
+  it("should get the correct tokenURI", async ():Promise<void> => {
+    const {signers, protoNFTInstance} = await loadFixture(deployFixture);
+    const buyerAccount:HardhatEthersSigner = signers[1];
+    const quantity:bigint = 3n;
+    const price:bigint = await protoNFTInstance.getPrice();
+    const totalPayment:bigint = quantity * price; 
+    const otherInstance:ProtoNFT = protoNFTInstance.connect(buyerAccount);
+    await otherInstance.mint(quantity, {value:totalPayment});
+    
+    const baseURI:string = "https://lime-various-leopon-885.mypinata.cloud/ipfs/QmWzauq9heZFeVoEjW2Ye3iwAiqHqWi3kbB6V8Xhe6qHEe/";
+
+    const tokenURI:string = await protoNFTInstance.tokenURI(0);
+
+    expect(tokenURI).to.equal(`${baseURI}0.json`)
+
+    
+  });
+
 });

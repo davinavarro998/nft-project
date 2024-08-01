@@ -13,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "deployment-history": "^3.0.0",
     "erc721a": "^4.3.0",
     "hardhat": "^2.22.7"
   },

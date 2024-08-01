@@ -1,6 +1,7 @@
 import hre from 'hardhat';
 import {HardhatEthersSigner} from '@nomicfoundation/hardhat-ethers/signers';
 import { ProtoNFT, ProtoNFT__factory } from '../typechain-types';
+import {saveDeployment} from 'deployment-history'
 
 async function main():Promise<void> {
     const networkName:string = (await hre.ethers.provider.getNetwork()).name;
@@ -17,7 +18,11 @@ async function main():Promise<void> {
 
     const protoNFTAddress:string = await protoNFTInstance.getAddress();
 
+    saveDeployment({contractAddress:protoNFTAddress, contractName:'ProtoNFT', network:networkName});
+
     console.log(`Network = ${networkName}\nAddress = ${protoNFTAddress}\nDeployer Account = ${deployerAccount.address}`);
+
+    
 }
 
 main().catch((err) => {
