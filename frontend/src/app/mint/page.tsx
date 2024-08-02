@@ -7,14 +7,13 @@ export default function Home() {
   const [wallet, setWallet] = useState<string>("");
   const [message, setMessage] = useState<string>("");
 
+  useEffect(() => {
+    const wallet: string | null = localStorage.getItem("wallet");
 
-  useEffect(()=>{
-    const wallet:string | null = localStorage.getItem("wallet");
-
-    if(wallet){
-        setMessage(wallet);
+    if (wallet) {
+      setMessage(wallet);
     }
-  }, [])
+  }, []);
 
   function btnLoginClick() {
     alert("login");
@@ -58,9 +57,12 @@ export default function Home() {
               Login
             </button>
           ) : (
-            <button id="btnLogout" onClick={btnLogoutClick}>
-              Logout
-            </button>
+            <>
+              <a href={`${process.env.OPENSEA_URL}/${wallet}`}>{wallet}</a>
+              <button id="btnLogout" onClick={btnLogoutClick}>
+                Logout
+              </button>
+            </>
           )}
         </p>
 
@@ -86,9 +88,7 @@ export default function Home() {
         ) : (
           <></>
         )}
-        <p>
-            {message}
-        </p>
+        <p>{message}</p>
       </div>
     </main>
   );
