@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react"; 
 import { login, mint } from "@/services/Web3Service";
+import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap CSS
 
 export default function Home() {
   const [quantity, setQuantity] = useState<number>(1);
@@ -39,15 +40,14 @@ export default function Home() {
 
   function btnMintClick() {
     setMessage("Minting...");
-    mint(quantity).then((tx)=>{
-      setMessage("Tx ID" + (tx || "error"));
-      setQuantity(1);
-    }).catch((err)=>{
-      setMessage(err.message);
-    });
-
-    
-    
+    mint(quantity)
+      .then((tx) => {
+        setMessage("Tx ID" + (tx || "error"));
+        setQuantity(1);
+      })
+      .catch((err) => {
+        setMessage(err.message);
+      });
   }
 
   function onChangeQuantity(evt: ChangeEvent<HTMLInputElement>) {
@@ -61,47 +61,54 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div>
-        <h1>Mint Page</h1>
-        <p>
+    <main className="d-flex flex-column align-items-center justify-content-center min-vh-100 p-4">
+      <div className="card p-4 w-100" style={{ maxWidth: "500px" }}>
+        <h1 className="text-center mb-4">Mint Page</h1>
+        <p className="text-center">
           {!wallet ? (
-            <button id="btnLogin" onClick={btnLoginClick}>
+            <button id="btnLogin" className="btn btn-primary" onClick={btnLoginClick}>
               Login
             </button>
           ) : (
             <>
-              <a href={`${process.env.OPENSEA_URL}/${wallet}`}>{wallet}</a>
-              <button id="btnLogout" onClick={btnLogoutClick}>
-                Logout
-              </button>
+              <div className="d-flex justify-content-between align-items-center">
+                <a
+                  href={`${process.env.OPENSEA_URL}/${wallet}`}
+                  className="text-truncate text-dark"
+                  style={{ maxWidth: "70%", textDecoration: "none" }}
+                >
+                  {wallet}
+                </a>
+                <button id="btnLogout" className="btn btn-outline-secondary ms-2" onClick={btnLogoutClick}>
+                  Logout
+                </button>
+              </div>
             </>
           )}
         </p>
 
         {wallet ? (
           <>
-            <p>
-              <label>
-                Quantity:
-                <input
-                  type="number"
-                  id="quantity"
-                  value={quantity}
-                  onChange={onChangeQuantity}
-                />
-              </label>
+            <p className="form-group">
+              <label htmlFor="quantity">Quantity:</label>
+              <input
+                type="number"
+                id="quantity"
+                className="form-control"
+                value={quantity}
+                onChange={onChangeQuantity}
+                max={5}
+                min={1}
+              />
             </p>
-            <p>
-              <button id="btnMint" onClick={btnMintClick}>
+            <p className="text-center">
+              <button id="btnMint" className="btn btn-success" onClick={btnMintClick}>
                 Mint
               </button>
             </p>
           </>
-        ) : (
-          <></>
-        )}
-        <p>{message}</p>
+        ) : null}
+        <p className="text-center text-muted mt-3">{message}</p>
       </div>
     </main>
   );
